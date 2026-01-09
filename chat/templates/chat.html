@@ -1,0 +1,210 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gemini AI Chatbot</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+    <style>
+        body { 
+            font-family: Arial, sans-serif; 
+            background: #f0f2f5; 
+            margin: 0; 
+            padding: 0; 
+        }
+        .container { 
+            max-width: 800px; 
+            margin: 20px auto; 
+            background: white; 
+            border-radius: 10px; 
+            box-shadow: 0 0 20px rgba(0,0,0,0.1); 
+            overflow: hidden; 
+            display: flex; 
+            flex-direction: column; 
+            height: 90vh; 
+        }
+        header { 
+            background: #4285f4; 
+            color: white; 
+            padding: 15px 20px; 
+            display: flex; 
+            justify-content: space-between; 
+            align-items: center; 
+        }
+        .user-info {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        .avatar {
+            width: 40px;
+            height: 40px;
+            background: #fff;
+            color: #4285f4;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 18px;
+            font-weight: bold;
+            border: 2px solid white;
+        }
+        .user-name {
+            font-size: 18px;
+            font-weight: 500;
+        }
+        .header-actions {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+        .clear-btn { 
+            background: #dc3545; 
+            color: white; 
+            border: none; 
+            padding: 8px 16px; 
+            border-radius: 8px; 
+            cursor: pointer; 
+            font-size: 14px; 
+        }
+        .clear-btn:hover { 
+            background: #c82333; 
+        }
+        .logout-link {
+            color: white;
+            text-decoration: none;
+            font-size: 14px;
+        }
+        .logout-link:hover {
+            text-decoration: underline;
+        }
+        .chat-box { 
+            flex: 1; 
+            padding: 20px; 
+            overflow-y: auto; 
+            display: flex; 
+            flex-direction: column; 
+            gap: 15px; 
+        }
+        .message { 
+            max-width: 70%; 
+            padding: 12px 16px; 
+            border-radius: 20px; 
+            line-height: 1.4; 
+            word-wrap: break-word; 
+        }
+        .user { 
+            align-self: flex-end; 
+            background: #4285f4; 
+            color: white; 
+            border-bottom-right-radius: 5px; 
+        }
+        .ai { 
+            align-self: flex-start; 
+            background: #e0e0e0; 
+            color: black; 
+            border-bottom-left-radius: 5px; 
+        }
+        .input-area { 
+            display: flex; 
+            align-items: center;
+            padding: 15px; 
+            background: #f9f9f9; 
+            border-top: 1px solid #ddd; 
+        }
+        input[type="text"] { 
+            flex: 1; 
+            padding: 15px; 
+            border: 1px solid #ccc; 
+            border-radius: 30px; 
+            font-size: 16px; 
+            outline: none; 
+        }
+        .upload-label {
+            margin-left: 15px;
+            cursor: pointer;
+            font-size: 24px;
+            color: #4285f4;
+        }
+        button.send-btn { 
+            padding: 15px 25px; 
+            margin-left: 10px; 
+            background: #4285f4; 
+            color: white; 
+            border: none; 
+            border-radius: 30px; 
+            cursor: pointer; 
+            font-size: 16px; 
+        }
+        button.send-btn:hover { 
+            background: #3367d6; 
+        }
+        img.chat-image {
+            max-width: 100%;
+            border-radius: 15px;
+            margin-bottom: 10px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <header>
+            <div class="user-info">
+                <div class="avatar">
+                    {{ user.username|slice:":1"|upper }}
+                </div>
+                <div class="user-name">
+                    Hello, {{ user.username }}!
+                </div>
+            </div>
+
+            <div class="header-actions">
+                <form method="post" style="margin: 0;">
+                    {% csrf_token %}
+                    <button type="submit" name="clear_chat" value="1" class="clear-btn">
+                        Clear Chat
+                    </button>
+                </form>
+                <a href="/logout/" class="logout-link">Logout</a>
+            </div>
+        </header>
+
+        <!-- Chat Messages -->
+        <div class="chat-box" id="chatBox">
+            {% if not chat_history %}
+                <p style="text-align: center; color: #888; margin: auto;">Start a conversation!</p>
+            {% endif %}
+            {% for msg in chat_history %}
+                <div class="message {{ msg.role }}">
+                    {% if msg.image %}
+                        <img src="{{ msg.image.url }}" alt="Uploaded image" class="chat-image">
+                    {% endif %}
+                    {{ msg.text|linebreaksbr }}
+                </div>
+            {% endfor %}
+        </div>
+
+        <!-- Input Form with Camera Icon -->
+        <form class="input-area" method="post" enctype="multipart/form-data">
+            {% csrf_token %}
+            <input type="text" name="user_input" placeholder="Type message or upload image..." autofocus>
+            <label class="upload-label" for="image_upload">
+                <i class="fas fa-camera"></i>
+            </label>
+            <input type="file" id="image_upload" name="image_upload" accept="image/*" style="display: none;">
+            <button type="submit" class="send-btn">Send</button>
+        </form>
+    </div>
+
+    <script>
+        // Auto-scroll to bottom
+        const chatBox = document.getElementById('chatBox');
+        chatBox.scrollTop = chatBox.scrollHeight;
+
+        // Keep input focused
+        document.querySelector('input[name="user_input"]').focus();
+    </script>
+</body>
+</html>
